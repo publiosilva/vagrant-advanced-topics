@@ -1,0 +1,42 @@
+---
+- hosts: database
+  handlers:
+  - name: restart mysql
+    service: 
+      name: mysql
+      state: restarted
+    become: yes
+  tasks:
+  - name: 'Install packages'
+    apt: 
+      name: [mysql-server-5.7, python3-mysqldb]
+      state: latest
+    become: yes
+  - name: 'Create MySQL database'
+    mysql_db:
+      name: wordpress_db
+      login_user: root
+      state: present
+    become: yes
+  - name: 'Create MySQL user'
+    mysql_user:
+      login_user: root
+      name: wordpress_user
+      password: '12345'
+      priv: 'wordpress_db.*:ALL'
+      state: present
+      host: '{{ item }}'
+    with_items:
+      - 'localhost'
+      - '127.0.0.1'
+      - '192.168.2.220'
+      - '192.168.2.221'
+      - '192.168.2.222'
+    become: yes
+  - name: 'Configure MySQL to accept remote connections'
+    shell: sed -i 's/127.0.0.1/0.0.0.0/' /etc/mysql/mysql.conf.d/mysqld.cnf
+    args:
+      warn: no
+    become: yes
+    notify:
+      - restart mysql
